@@ -1,0 +1,4 @@
+{
+    "python.defaultInterpreterPath": "/Users/home/dev/crewai_env/bin/python3.11",
+    "python.terminal.activateEnvironment" : true
+}

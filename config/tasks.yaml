@@ -1,0 +1,56 @@
+# Task configurations
+
+interpret_task:
+  agent: query_interpreter
+  description: |
+    Analyze the following user question and determine what data analysis needs to be performed.
+    Identify relevant columns, filters, groupings, and calculations.
+    
+    Schema Information:
+    {schema_info}
+    
+    User Question: {question}
+    
+    Provide your analysis in a structured format that identifies:
+    1. Relevant columns to use
+    2. Any filters or conditions
+    3. Grouping requirements (if any)
+    4. Calculations or aggregations needed
+    5. Type of result expected (table, single value, etc.)
+  expected_output: A structured analysis of the user's question with specific data requirements.
+
+generate_code_task:
+  agent: code_generator
+  description: |
+    Generate python pandas code to answer the user's question based on the provided analysis.
+    
+    Schema Information:
+    {schema_info}
+    
+    User Question: {question}
+    Analysis: {analysis}
+    
+    Write clean, efficient pandas code that uses the '{dataset_name}' variable for the dataframe.
+    Include comments explaining your approach.
+    The code should print or return the results.
+    Store the final result in a variable named 'result'.
+  expected_output: Python pandas code that answers the user's question.
+  context: [interpret_task]
+
+explain_results_task:
+  agent: result_explainer
+  description: |
+    Execute the provided pandas code and explain the results in business-friendly language.
+    
+    User Question: {question}
+    Analysis: {analysis}
+    Code: {code}
+    
+    1. Execute the code using your PandasExecutionTool
+    2. Format the results in a readable way
+    3. Explain the findings in business terms that non-technical users can understand
+    4. Highlight any interesting insights or patterns
+    
+    Your explanation should directly answer the original question.
+  expected_output: Business-friendly explanation of the analysis results.
+  context: [interpret_task, generate_code_task]
