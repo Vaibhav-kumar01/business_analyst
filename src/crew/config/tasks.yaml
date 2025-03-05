@@ -28,7 +28,6 @@ generate_code_task:
     {schema_info}
     
     User Question: {question}
-    Analysis: {analysis}
     
     Write clean, efficient pandas code that uses the '{dataset_name}' variable for the dataframe.
     Include comments explaining your approach.
@@ -43,8 +42,6 @@ explain_results_task:
     Execute the provided pandas code and explain the results in business-friendly language.
     
     User Question: {question}
-    Analysis: {analysis}
-    Code: {code}
     
     1. Execute the code using your PandasExecutionTool
     2. Format the results in a readable way
