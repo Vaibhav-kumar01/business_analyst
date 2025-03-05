@@ -15,29 +15,27 @@ llm:
   default:
     # Using Google's Gemini model for all agents
     type: google
-    model: gemini-pro
+    model: gemini/gemini-2.0-flash
     temperature: 0
     max_tokens: 1000
-    # API keys should be in .env file, not here
-    api_key: ${GOOGLE_API_KEY}
   
   # Specific LLMs for different agents (optional)
   query_interpreter:
     # Inherits from default but with custom temperature
     type: google
-    model: gemini-pro
+    model: gemini/gemini-2.0-flash
     temperature: 0.2  # Slightly more creative for interpretation
   
   code_generator:
     # Specific LLM for code generation
     type: google
-    model: gemini-pro
+    model: gemini/gemini-2.0-flash
     temperature: 0  # Zero temperature for consistent code
   
   result_explainer:
     # Specific LLM for result explanation
     type: google
-    model: gemini-pro
+    model: gemini/gemini-2.0-flash
     temperature: 0.3  # More creativity for explanations
 
 # Logging settings
