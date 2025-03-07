@@ -20,33 +20,36 @@ interpret_task:
   expected_output: A structured analysis of the user's question with specific data requirements.
 
 generate_code_task:
-  agent: code_generator
+  agent: data_analyst_agent
   description: |
-    Generate python pandas code to answer the user's question based on the provided analysis.
+    Generate and execute python pandas code to answer the user's question based on the provided analysis.
     
     Schema Information:
     {schema_info}
     
     User Question: {question}
+    Analysis: {analysis}
     
-    Write clean, efficient pandas code that uses the '{dataset_name}' variable for the dataframe.
-    Include comments explaining your approach.
-    The code should print or return the results.
-    Store the final result in a variable named 'result'.
-  expected_output: Python pandas code that answers the user's question.
+    1. Write clean, efficient pandas code that uses the '{dataset_name}' variable for the dataframe
+    2. Include comments explaining your approach
+    3. Execute the code using the code_interpreter tool
+    4. Store both the code and execution results in variables named 'code' and 'result'
+    5. Return both the code and execution results for the next task
+  expected_output: Dictionary containing the generated code and its execution results
   context: [interpret_task]
 
 explain_results_task:
   agent: result_explainer
   description: |
-    Execute the provided pandas code and explain the results in business-friendly language.
+    Explain the provided analysis results in business-friendly language.
     
     User Question: {question}
+    Analysis: {analysis}
+    Results: {results}
     
-    1. Execute the code using your PandasExecutionTool
-    2. Format the results in a readable way
-    3. Explain the findings in business terms that non-technical users can understand
-    4. Highlight any interesting insights or patterns
+    1. Format the results in a readable way
+    2. Explain the findings in business terms that non-technical users can understand
+    3. Highlight any interesting insights or patterns
     
     Your explanation should directly answer the original question.
   expected_output: Business-friendly explanation of the analysis results.

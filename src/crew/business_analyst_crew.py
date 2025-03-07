@@ -48,11 +48,11 @@ class BusinessAnalystCrew():
     )
 
   @agent
-  def code_generator(self) -> Agent:
+  def data_analyst_agent(self) -> Agent:
     return Agent(
-      config=self.agents_config['code_generator'],
+      config=self.agents_config['data_analyst_agent'],
       verbose=True,
-      llm = setup_llm("code_generator")
+      llm = setup_llm("data_analyst_agent")
     )
   
   @agent
@@ -74,7 +74,7 @@ class BusinessAnalystCrew():
   def generate_code_task(self) -> Task:
     return Task(
             config = self.tasks_config['generate_code_task'],
-            agent = self.code_generator()
+            agent = self.data_analyst_agent()
         )
 
   @task
@@ -89,13 +89,13 @@ class BusinessAnalystCrew():
     return Crew(
       agents=[
         self.query_interpreter(),
-        self.code_generator()
-        # self.result_explainer()
+        self.data_analyst_agent(),
+        self.result_explainer()
       ],
       tasks=[
         self.interpret_task(),
-        self.generate_code_task()
-        # self.explain_results_task()
+        self.generate_code_task(),
+        self.explain_results_task()
       ],
       process=Process.sequential
     )

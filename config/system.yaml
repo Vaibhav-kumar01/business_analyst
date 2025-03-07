@@ -26,7 +26,7 @@ llm:
     model: gemini/gemini-2.0-flash
     temperature: 0.2  # Slightly more creative for interpretation
   
-  code_generator:
+  data_analyst_agent:
     # Specific LLM for code generation
     type: google
     model: gemini/gemini-2.0-flash
