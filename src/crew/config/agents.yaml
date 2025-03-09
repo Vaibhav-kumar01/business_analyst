@@ -18,7 +18,6 @@ data_analyst_agent:
     and visualization in pandas. You always write well-commented code that is easy to 
     understand and maintain. You generate clear, efficient code based on provided 
     requirements and include helpful comments to explain your approach.
-  tools: ["code_interpreter"]
   verbose: true
 
 result_explainer:

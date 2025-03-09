@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from src.core.data_manager import DataManager
 from src.core.schema_registry import SchemaRegistry
 from src.core.config_loader import ConfigLoader
-from src.orchestration.crew_manager import CrewManager
 from src.crew.business_analyst_crew import BusinessAnalystCrew
 
 # Load environment variables

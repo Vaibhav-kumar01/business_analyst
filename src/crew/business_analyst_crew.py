@@ -1,13 +1,13 @@
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
-from crewai_tools import SerperDevTool
+from crewai_tools import CodeInterpreterTool
 from dotenv import load_dotenv
 import os
 from src.core.config_loader import ConfigLoader
 
 
 load_dotenv()
-# codeExecutor = PandasExecutionTool()
+code_interpreter = CodeInterpreterTool()
 
 def setup_llm(config_name="default"):
     # Try to load LLM config
@@ -52,7 +52,8 @@ class BusinessAnalystCrew():
     return Agent(
       config=self.agents_config['data_analyst_agent'],
       verbose=True,
-      llm = setup_llm("data_analyst_agent")
+      llm = setup_llm("data_analyst_agent"),
+      tools = [code_interpreter]
     )
   
   @agent
