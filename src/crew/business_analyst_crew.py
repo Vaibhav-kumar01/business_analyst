@@ -11,7 +11,7 @@ from docker import from_env
 client = from_env()
 # print(f"Here are the images: {client.images.list()}")
 image = client.images.get("data-science-image")
-# print(f"Found image: {image.tags}")
+print(f"Found image: {image.tags}")
 code_interpreter = CustomCodeInterpreterTool(image_name="data-science-image", verbose=True)
 
 def setup_llm(config_name="default"):
