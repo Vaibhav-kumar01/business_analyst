@@ -1,12 +1,12 @@
-import os
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 from docker import from_env as docker_from_env
 from docker.errors import ImageNotFound, NotFound
+import os
 
 class CodeExecutorSchema(BaseModel):
-    """Input schema for PersistentCodeExecutor."""
+    """Input schema for CustomCodeInterpreterTool."""
     
     code: str = Field(
         ...,
@@ -25,35 +25,24 @@ class CustomCodeInterpreterTool(BaseTool):
     description: str = "Executes Python code and maintains state between executions."
     args_schema: type[BaseModel] = CodeExecutorSchema
     
-    # Configuration
+    # Configuration (these are proper Pydantic fields)
     image_name: str = "data-science-env:latest"
     container_name: str = "persistent-code-executor"
+    verbose: bool = True
     
-    # State tracking
-    _container = None
-    _installed_libraries: List[str] = []
+    # Use PrivateAttr for internal state that shouldn't be part of the model schema
+    _container = PrivateAttr(default=None)
+    _installed_libraries = PrivateAttr(default_factory=list)
+    _dockerfile_path = PrivateAttr(default=None)
     
-    def __init__(self, 
-                 image_name: Optional[str] = None, 
-                 dockerfile_path: Optional[str] = None,
-                 container_name: Optional[str] = None,
-                 verbose: bool = True):
-        """
-        Initialize the code executor.
+    def __init__(self, **data):
+        """Initialize with proper kwargs handling for Pydantic."""
+        super().__init__(**data)
+        self._installed_libraries = []
         
-        Args:
-            image_name: Docker image to use (defaults to "data-science-env:latest")
-            dockerfile_path: Path to Dockerfile if image needs to be built
-            container_name: Name for the persistent container
-            verbose: Whether to print detailed logs
-        """
-        super().__init__()
-        if image_name:
-            self.image_name = image_name
-        if container_name:
-            self.container_name = container_name
-        self.dockerfile_path = dockerfile_path
-        self.verbose = verbose
+        # Store dockerfile path if provided
+        if "dockerfile_path" in data:
+            self._dockerfile_path = data["dockerfile_path"]
         
         # Initialize container on startup
         self._ensure_container_running()
@@ -71,16 +60,16 @@ class CustomCodeInterpreterTool(BaseTool):
             client.images.get(self.image_name)
             self._log(f"Using existing Docker image: {self.image_name}")
         except ImageNotFound:
-            if not self.dockerfile_path:
+            if not self._dockerfile_path:
                 raise ValueError(f"Docker image {self.image_name} not found and no Dockerfile provided")
             
-            if not os.path.exists(self.dockerfile_path):
-                raise FileNotFoundError(f"Dockerfile not found at {self.dockerfile_path}")
+            if not os.path.exists(self._dockerfile_path):
+                raise FileNotFoundError(f"Dockerfile not found at {self._dockerfile_path}")
             
-            self._log(f"Building Docker image {self.image_name} from {self.dockerfile_path}")
+            self._log(f"Building Docker image {self.image_name} from {self._dockerfile_path}")
             client.images.build(
-                path=os.path.dirname(self.dockerfile_path),
-                dockerfile=os.path.basename(self.dockerfile_path),
+                path=os.path.dirname(self._dockerfile_path),
+                dockerfile=os.path.basename(self._dockerfile_path),
                 tag=self.image_name,
                 rm=True
             )
@@ -88,7 +77,7 @@ class CustomCodeInterpreterTool(BaseTool):
     
     def _ensure_container_running(self) -> None:
         """Ensure a container is running, creating one if needed."""
-        if CustomCodeInterpreterTool._container is not None:
+        if self._container is not None:
             # Container reference exists, check if it's still running
             try:
                 client = docker_from_env()
@@ -96,12 +85,12 @@ class CustomCodeInterpreterTool(BaseTool):
                 if container.status != "running":
                     self._log(f"Container exists but not running. Starting it...")
                     container.start()
-                CustomCodeInterpreterTool._container = container
+                self._container = container
                 self._log(f"Using existing container: {container.short_id}")
                 return
             except NotFound:
                 self._log(f"Container reference exists but container not found. Creating new one.")
-                CustomCodeInterpreterTool._container = None
+                self._container = None
         
         # Create a new container
         self._ensure_image_exists()
@@ -118,7 +107,7 @@ class CustomCodeInterpreterTool(BaseTool):
         
         # Create and start new container
         self._log(f"Creating new container from image: {self.image_name}")
-        CustomCodeInterpreterTool._container = client.containers.run(
+        self._container = client.containers.run(
             self.image_name,
             detach=True,
             tty=True,
@@ -128,25 +117,23 @@ class CustomCodeInterpreterTool(BaseTool):
             volumes={os.getcwd(): {"bind": "/workspace", "mode": "rw"}},
             remove=False  # Don't auto-remove when stopped
         )
-        self._log(f"Created container: {CustomCodeInterpreterTool._container.short_id}")
+        self._log(f"Created container: {self._container.short_id}")
     
     def _install_libraries(self, libraries: List[str]) -> None:
         """Install libraries that haven't been installed yet."""
-        container = CustomCodeInterpreterTool._container
-        if not container:
+        if not self._container:
             self._ensure_container_running()
-            container = CustomCodeInterpreterTool._container
         
         for library in libraries:
-            if library in CustomCodeInterpreterTool._installed_libraries:
+            if library in self._installed_libraries:
                 self._log(f"Library already installed, skipping: {library}")
                 continue
                 
             self._log(f"Installing library: {library}")
-            result = container.exec_run(["pip", "install", "--no-cache-dir", library])
+            result = self._container.exec_run(["pip", "install", "--no-cache-dir", library])
             
             if result.exit_code == 0:
-                CustomCodeInterpreterTool._installed_libraries.append(library)
+                self._installed_libraries.append(library)
                 if self.verbose:
                     self._log(f"Successfully installed {library}")
             else:
@@ -166,7 +153,7 @@ class CustomCodeInterpreterTool(BaseTool):
             
             # Execute the code
             self._log("Running code...")
-            result = CustomCodeInterpreterTool._container.exec_run(
+            result = self._container.exec_run(
                 ["python3", "-c", code],
                 environment={"PYTHONIOENCODING": "utf-8"}
             )
@@ -186,12 +173,12 @@ class CustomCodeInterpreterTool(BaseTool):
     
     def cleanup(self) -> None:
         """Stop and remove the container (call at end of session)."""
-        if CustomCodeInterpreterTool._container:
+        if self._container:
             self._log("Cleaning up resources...")
             try:
-                CustomCodeInterpreterTool._container.stop()
-                CustomCodeInterpreterTool._container.remove()
-                CustomCodeInterpreterTool._container = None
+                self._container.stop()
+                self._container.remove()
+                self._container = None
                 self._log("Container stopped and removed")
             except Exception as e:
                 self._log(f"Error during cleanup: {str(e)}")

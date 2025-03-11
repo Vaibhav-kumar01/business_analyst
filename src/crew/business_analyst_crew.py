@@ -1,13 +1,18 @@
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
-from crewai_tools import CodeInterpreterTool
 from dotenv import load_dotenv
 import os
 from src.core.config_loader import ConfigLoader
+from src.tools.custom_code_interpreter import CustomCodeInterpreterTool
 
 
 load_dotenv()
-code_interpreter = CodeInterpreterTool()
+from docker import from_env
+client = from_env()
+# print(f"Here are the images: {client.images.list()}")
+image = client.images.get("data-science-image")
+# print(f"Found image: {image.tags}")
+code_interpreter = CustomCodeInterpreterTool(image_name="data-science-image", verbose=True)
 
 def setup_llm(config_name="default"):
     # Try to load LLM config
@@ -21,11 +26,8 @@ def setup_llm(config_name="default"):
     # Check for model type and initialize accordingly
     model_type = llm_config.get("type", "").lower()
     print(f"Setting up LLM for {config_name} with model type: {model_type}")
-    print(f"LLM Config: {llm_config}")
     if model_type == "google":
         model=llm_config.get("model", "gemini-pro")
-        print(os.environ.get("GOOGLE_API_KEY"))
-        print(model)
         return LLM(
             model=llm_config.get("model", "gemini-pro"),
             api_key=os.environ.get("GOOGLE_API_KEY"),
@@ -56,13 +58,6 @@ class BusinessAnalystCrew():
       tools = [code_interpreter]
     )
   
-  @agent
-  def result_explainer(self) -> Agent:
-    return Agent(
-      config=self.agents_config['result_explainer'],
-      verbose=True,
-      llm = setup_llm("result_explainer")
-    )
 
   @task
   def interpret_task(self) -> Task:
@@ -72,31 +67,22 @@ class BusinessAnalystCrew():
         )
 
   @task
-  def generate_code_task(self) -> Task:
+  def data_analyst_task(self) -> Task:
     return Task(
-            config = self.tasks_config['generate_code_task'],
+            config = self.tasks_config['data_analyst_task'],
             agent = self.data_analyst_agent()
         )
 
-  @task
-  def explain_results_task(self) -> Task:
-    return Task(
-            config = self.tasks_config['explain_results_task'],
-            agent = self.result_explainer()
-        )
-  
   @crew
   def crew(self) -> Crew:
     return Crew(
       agents=[
         self.query_interpreter(),
-        self.data_analyst_agent(),
-        self.result_explainer()
+        self.data_analyst_agent()
       ],
       tasks=[
         self.interpret_task(),
-        self.generate_code_task(),
-        self.explain_results_task()
+        self.data_analyst_task()
       ],
       process=Process.sequential
     )

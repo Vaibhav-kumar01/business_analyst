@@ -19,35 +19,33 @@ interpret_task:
     5. Type of result expected (table, single value, etc.)
   expected_output: A structured analysis of the user's question with specific data requirements.
 
-generate_code_task:
-  agent: data_analyst_agent
+data_analyst_task:
   description: |
-    Generate and execute python pandas code to answer the user's question based on the provided analysis.
-    
-    Schema Information:
-    {schema_info}
+    You are a professional data analyst. Analyze the CSV data and answer the user's question clearly.
     
     User Question: {question}
     
-    1. Write clean, efficient pandas code that uses the '{dataset_name}' variable for the dataframe
-    2. Include comments explaining your approach
-    3. Execute the code using the code_interpreter tool
-    4. Store both the code and execution results in variables named 'code' and 'result'
-    5. Return both the code and execution results for the next task
-  expected_output: Dictionary containing the generated code and its execution results
-  context: [interpret_task]
-
-explain_results_task:
-  agent: result_explainer
-  description: |
-    Explain the provided analysis results in business-friendly language.
+    INSTRUCTIONS:
+    1. FIRST: Load the CSV file from '/workspace/data/superstore.csv' and examine its structure
+       - Print column names, data types, and first few rows to understand the data
     
-    User Question: {question}
+    2. THEN: Analyze the data to answer the question
+       - Write clear, focused code that directly addresses the question
+       - Use pandas for data manipulation
+       - Keep your code simple and efficient
     
-    1. Format the results in a readable way
-    2. Explain the findings in business terms that non-technical users can understand
-    3. Highlight any interesting insights or patterns
+    3. FINALLY: Present the findings in a clear, business-friendly way
+       - Summarize key insights at the end
+       - Format results in a readable manner
     
-    Your explanation should directly answer the original question.
-  expected_output: Business-friendly explanation of the analysis results.
-  context: [interpret_task, generate_code_task]
+    IMPORTANT TECHNICAL GUIDELINES:
+    - Run your code ONCE, examine the output, then provide your final answer
+    - Do NOT use the Code Interpreter tool repeatedly
+    - If you need visualization libraries, use only what's pre-installed
+    - Keep your analysis in a SINGLE code block
+    
+    Your final answer should include:
+    1. The code you used (with comments explaining your approach)
+    2. The results of running that code
+    3. A clear explanation of what the results mean
+  expected_output: "Complete analysis with code, results, and explanation."

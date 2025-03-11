@@ -1,0 +1,27 @@
+FROM python:3.10-slim
+
+# Install system dependencies required for building Python data science packages
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    git \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install core data science packages
+RUN pip install --no-cache-dir \
+    numpy \
+    pandas \
+    matplotlib \
+    seaborn \
+    plotly \
+    scikit-learn \
+    scipy \
+    openpyxl \
+    pyarrow
+
+# Create workspace directory
+WORKDIR /workspace
+
+# Verify installations
+RUN python -c "import numpy; import pandas; import matplotlib; import seaborn; import plotly; import sklearn; print('All packages successfully installed')"

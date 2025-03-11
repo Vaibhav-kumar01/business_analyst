@@ -61,6 +61,7 @@ def interactive_mode(data_manager, schema_registry):
         
         print("\nProcessing your question...")
         result = BusinessAnalystCrew().crew().kickoff(inputs={"question": question, "dataset_name": dataset_name, "schema_info": schema_info})
+        # print(f"Output of first task: {result.tasks[0].output}")
         print("\nAnswer:")
         print(result)
 
