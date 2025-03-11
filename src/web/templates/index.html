@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Data Analysis System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .loading {
+            display: none;
+        }
+        .analysis-card {
+            margin-bottom: 20px;
+        }
+        .result-section {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .error-section {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background-color: #fff2f2;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .execution-time {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .visualization-container {
+            margin-top: 15px;
+        }
+        .visualization-img {
+            max-width: 100%;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .status-badge {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Business Data Analysis System</h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Ask a question about your business data</h5>
+                <form id="query-form">
+                    <div class="mb-3">
+                        <label for="dataset" class="form-label">Select dataset:</label>
+                        <select class="form-select" id="dataset" name="dataset">
+                            {% for dataset in datasets %}
+                            <option value="{{ dataset }}">{{ dataset }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="query" class="form-label">Your question:</label>
+                        <input type="text" class="form-control" id="query" placeholder="e.g., What are the sales trends by region?" required>
+                    </div>
+                    <div class="mb-3">
+                        <p class="text-muted small">Example questions:
+                            <span class="example-query" style="cursor: pointer; text-decoration: underline; color: blue;">Show me sales by region</span>,
+                            <span class="example-query" style="cursor: pointer; text-decoration: underline; color: blue;">What are the top 5 products by profit?</span>,
+                            <span class="example-query" style="cursor: pointer; text-decoration: underline; color: blue;">Compare sales by category</span>
+                        </p>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Analyze</button>
+                    <div class="loading mt-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span class="ms-2">Analyzing data... This may take a moment.</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="current-result" class="mb-4"></div>
+
+        <h2 class="mb-3">Analysis History</h2>
+        <div id="history-container">
+            <!-- Analysis history will be displayed here -->
+            {% for item in history %}
+            <div class="card analysis-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ item.query }}</strong>
+                        {% if item.has_error %}
+                        <span class="badge bg-danger status-badge">Error</span>
+                        {% else %}
+                        <span class="badge bg-success status-badge">Success</span>
+                        {% endif %}
+                    </div>
+                    <small class="execution-time">{{ item.execution_time }} - {{ item.timestamp }}</small>
+                </div>
+                <div class="card-body">
+                    {% if item.has_error %}
+                    <div class="error-section">{{ item.result }}</div>
+                    {% else %}
+                    <div class="result-section">{{ item.result }}</div>
+                    {% endif %}
+                    
+                    {% if item.visualizations %}
+                    <div class="visualization-container">
+                        {% for viz in item.visualizations %}
+                        <img src="{{ viz }}" alt="Visualization" class="visualization-img">
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // Add event listeners to example queries
+        document.querySelectorAll('.example-query').forEach(item => {
+            item.addEventListener('click', event => {
+                document.getElementById('query').value = event.target.textContent;
+            });
+        });
+    
+        document.getElementById('query-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const queryInput = document.getElementById('query');
+            const datasetSelect = document.getElementById('dataset');
+            const query = queryInput.value.trim();
+            const dataset = datasetSelect.value;
+            
+            if (!query) return;
+            
+            // Show loading indicator
+            document.querySelector('.loading').style.display = 'block';
+            
+            try {
+                const formData = new FormData();
+                formData.append('query', query);
+                formData.append('dataset', dataset);
+                
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                // Display the current result
+                displayResult(result, 'current-result');
+                
+                // Refresh history
+                fetchHistory();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                
+                // Display error in the current result
+                const errorResult = {
+                    query: query,
+                    dataset: dataset,
+                    result: `A communication error occurred: ${error.message}. Please try again.`,
+                    execution_time: "Error",
+                    timestamp: new Date().toISOString(),
+                    has_error: true,
+                    visualizations: []
+                };
+                
+                displayResult(errorResult, 'current-result');
+                
+            } finally {
+                // Hide loading indicator
+                document.querySelector('.loading').style.display = 'none';
+            }
+        });
+
+        function displayResult(result, containerId) {
+            const container = document.getElementById(containerId);
+            
+            let resultSectionClass = result.has_error ? "error-section" : "result-section";
+            let statusBadge = result.has_error ? 
+                '<span class="badge bg-danger status-badge">Error</span>' : 
+                '<span class="badge bg-success status-badge">Success</span>';
+            
+            let visualizationsHtml = '';
+            if (result.visualizations && result.visualizations.length > 0) {
+                visualizationsHtml = `
+                    <div class="visualization-container">
+                        ${result.visualizations.map(viz => `<img src="${viz}" alt="Visualization" class="visualization-img">`).join('')}
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = `
+                <div class="card analysis-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${result.query}</strong>
+                            ${statusBadge}
+                        </div>
+                        <small class="execution-time">${result.execution_time} - ${result.timestamp}</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="${resultSectionClass}">${result.result}</div>
+                        ${visualizationsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchHistory() {
+            try {
+                const response = await fetch('/history');
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                
+                const history = await response.json();
+                
+                const historyContainer = document.getElementById('history-container');
+                historyContainer.innerHTML = history.map(item => {
+                    let resultSectionClass = item.has_error ? "error-section" : "result-section";
+                    let statusBadge = item.has_error ? 
+                        '<span class="badge bg-danger status-badge">Error</span>' : 
+                        '<span class="badge bg-success status-badge">Success</span>';
+                    
+                    let visualizationsHtml = '';
+                    if (item.visualizations && item.visualizations.length > 0) {
+                        visualizationsHtml = `
+                            <div class="visualization-container">
+                                ${item.visualizations.map(viz => `<img src="${viz}" alt="Visualization" class="visualization-img">`).join('')}
+                            </div>
+                        `;
+                    }
+                    
+                    return `
+                        <div class="card analysis-card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${item.query}</strong>
+                                    ${statusBadge}
+                                </div>
+                                <small class="execution-time">${item.execution_time} - ${item.timestamp}</small>
+                            </div>
+                            <div class="card-body">
+                                <div class="${resultSectionClass}">${item.result}</div>
+                                ${visualizationsHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error fetching history:', error);
+            }
+        }
+    </script>
+</body>
+</html>
