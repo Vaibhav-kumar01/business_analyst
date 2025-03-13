@@ -5,9 +5,18 @@ Coordinates data loading, schema management, and analysis execution.
 import os
 import sys
 import traceback
+import logging
 from src.core.data_manager import DataManager
 from src.core.schema_registry import SchemaRegistry
 from src.crew.business_analyst_crew import BusinessAnalystCrew
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger("BusinessAnalystService")
 
 class BusinessAnalystService:
     """Service for handling business data analysis"""
@@ -69,12 +78,12 @@ class BusinessAnalystService:
                     "dataset_name": dataset_name, 
                     "schema_info": schema_info
                 })
-                
+                logger.info(f"Result type: {type(result)}\nAnalysis result: {result}")
                 # Check if result is empty or None, which indicates an LLM failure
                 if result is None or result == "":
                     return "Analysis failed: The AI model couldn't generate a response. This might be due to complexity of the query or a temporary issue with the AI service. Please try again with a simpler query or try later."
                 
-                return result
+                return result.raw
             except Exception as crew_error:
                 error_details = traceback.format_exc()
                 print(f"Error in CrewAI execution: {str(crew_error)}")
